@@ -7,7 +7,7 @@ knit: (function(input_file, encoding) {
  output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
 ---
 
-In this analysis, I look for any possible relationships between certain school district characteristics and the change in per-student M&O revenue under CSHB 3 as passed by the House. First we import and join the two data files: one with the school districts runs for HB 3 (NB: not the final runs as currently posted on the TEA and LBB web sites; I'll import and bring in that data later) and the other with an assortment of district-level data gathered by TEA.
+In this analysis, I look for any possible relationships between certain school district characteristics and the change in per-student M&O revenue under CSHB 3 as passed by the House. First we import and join two Excel files: one with the school districts runs for HB 3 (NB: not the final runs as currently posted on the TEA and LBB web sites; I'll import and bring in that data later) and another with an assortment of district characteristics gathered by TEA.
 
 ```{r}
 library(ggplot2)
@@ -37,7 +37,7 @@ ggplot(data = dfull, aes(x = COMMTYPE, y = log10(`Change in Total M&O Revenue pe
 
 ```
 
-We see visually from the violin plot that for instance there are only 11 "major urban" districts, and many (almost 400) rural districts. What is the distribution of district sizes?
+We see visually from the violin plot that for instance there are only 11 "major urban" districts, and many (almost 500) rural districts. What is the distribution of district sizes?
 
 
 ```{r}
@@ -49,7 +49,11 @@ This gives us an idea of the distribution of sizes and of the types of districts
 
 ```{r}
 ggplot(dfull) + geom_bar(aes(x = factor(DISTSIZE, c("Under 500","500 to 999","1,000 to 1,599","1,600 to 2,999","3,000 to 4,999","5,000 to 9,999","10,000 to 24,999","25,000 to 49,999","50,000 and over")), fill=COMMTYPE)) + coord_flip() + xlab("DISTSIZE")
+```
 
+It seems that smaller districts are seeing more M&O revenue per student, although there is a fairly wide variation among smaller districts.
+
+```{r}
 ggplot(data = dfull, mapping = aes(x = factor(DISTSIZE, c("Under 500","500 to 999","1,000 to 1,599","1,600 to 2,999","3,000 to 4,999","5,000 to 9,999","10,000 to 24,999","25,000 to 49,999","50,000 and over")), y = log10(`Change in Total M&O Revenue per Current Law ADA`))) + geom_boxplot() + coord_flip() + xlab("DISTSIZE")
 ```
 
@@ -109,25 +113,24 @@ ggplot(data = dfullcopy) + geom_sf(aes(fill=log10(`Change in Total M&O Revenue p
 ggplot(data = dfullcopy) + geom_sf(aes(fill=log10(`Change in Total M&O Revenue`))) + scale_fill_viridis_c(alpha = .4)
 ```
 
-Calculate the difference in recapture pre- and post-HB3. (Positive difference = district pays less in recapture)
+Calculate the difference in recapture pre- and post-HB3. (Positive difference = district pays less in recapture.)
 
 ```{r}
 dfullcopy$recapdiff <- dfullcopy$`Current Law Recapture` - dfullcopy$`HB 3 Recapture`
 dfullcopy$recapdiff_ada <- dfullcopy$recapdiff / dfullcopy$`Current Law ADA`
 ```
 
-...and map it, leaving out Kenedy County with its big recapture change, and then leaving out districts with no change in recapture.
-
-```{r, eval = FALSE}
-dfullcopy %>% filter(recapdiff_ada<10000) %>% ggplot() + geom_sf(aes(fill=recapdiff_ada)) + scale_fill_viridis_c(alpha = .4)
-```
-
+...and map it, leaving out Kenedy County with its big recapture change, and also leaving out districts with no change in recapture.
 
 ```{r}
-#library(mapview)
 dfullcopy %>% filter(recapdiff_ada>0) %>% filter(recapdiff_ada<10000) %>% ggplot() + geom_sf(aes(fill=recapdiff_ada)) + scale_fill_viridis_c(alpha = .4)
-#mapshot(map1, url = paste0(getwd(), "/docs/map1.html"))
 ```
 
+Alternatively, you can create this same map as a [zoomable, dynamic leaflet web page](docs/map_recapdiff_ada.html) with rollovers for school district info.
 
+```{r}
+dfullcopysf <- st_sf(dfullcopy)
+map_recapdiff_ada <- dfullcopysf %>% filter(recapdiff_ada>0) %>% filter(recapdiff_ada<10000) %>% mapview(zcol="recapdiff_ada")
+mapshot(map_recapdiff_ada, url = paste0(getwd(), "/docs/map_recapdiff_ada.html"))
+```
 
