@@ -1,0 +1,133 @@
+---
+title: "Exploration of HB 3 effects on school district revenue"
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+---
+
+In this analysis, I look for any possible relationships between certain school district characteristics and the change in per-student M&O revenue under CSHB 3 as passed by the House. First we import and join the two data files: one with the school districts runs for HB 3 (NB: not the final runs as currently posted on the TEA and LBB web sites; I'll import and bring in that data later) and the other with an assortment of district-level data gathered by TEA.
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(readxl)
+hb3 <- read_excel("hb3_4-5-19.xlsx", sheet = "HB3 FY 2020")
+district <- read_excel("district.xls")
+dfull <- inner_join(district, hb3, by = c("DISTRICT" = "District Number"))
+```
+
+First community type:
+
+```{r}
+dfull$COMMTYPE <- as.factor(dfull$COMMTYPE)
+summary(dfull$COMMTYPE)
+```
+
+
+```{r}
+ggplot(data = dfull, aes(x = COMMTYPE, y = log10(`Change in Total M&O Revenue per Current Law ADA`))) + geom_boxplot() + coord_flip()
+```
+
+It appears that rural and non-metropolitan fast-growing districts see a bigger bump in revenue than other kinds of districts. Note the variety of sample sizes among groups, however. Another way to see that is with a violin plot that includes jittered data points. This shows a bit more clearly the difference in group sizes.
+
+```{r}
+ggplot(data = dfull, aes(x = COMMTYPE, y = log10(`Change in Total M&O Revenue per Current Law ADA`))) + geom_violin() + coord_flip() + geom_jitter(shape=16, position=position_jitter(0.2))
+
+```
+
+We see visually from the violin plot that for instance there are only 11 "major urban" districts, and many (almost 400) rural districts. What is the distribution of district sizes?
+
+
+```{r}
+dfull$DISTSIZE <- as.factor(dfull$DISTSIZE)
+summary(dfull$DISTSIZE)
+```
+
+This gives us an idea of the distribution of sizes and of the types of districts. There are more small districts, most of which are rural.
+
+```{r}
+ggplot(dfull) + geom_bar(aes(x = factor(DISTSIZE, c("Under 500","500 to 999","1,000 to 1,599","1,600 to 2,999","3,000 to 4,999","5,000 to 9,999","10,000 to 24,999","25,000 to 49,999","50,000 and over")), fill=COMMTYPE)) + coord_flip() + xlab("DISTSIZE")
+
+ggplot(data = dfull, mapping = aes(x = factor(DISTSIZE, c("Under 500","500 to 999","1,000 to 1,599","1,600 to 2,999","3,000 to 4,999","5,000 to 9,999","10,000 to 24,999","25,000 to 49,999","50,000 and over")), y = log10(`Change in Total M&O Revenue per Current Law ADA`))) + geom_boxplot() + coord_flip() + xlab("DISTSIZE")
+```
+
+Then we look at tax rates, a categorical variable in the TEA data. It appears that districts with higher tax rates are seeing (a little) less of a bump in M&O revenue. As for the property wealth graph, it seems to suggest there is less variation in M&O change among lower-wealth districts than higher-wealth ones.
+
+```{r}
+ggplot(data = dfull, aes(x = factor(TAXRATE,c("Non-taxing entities","Under $1.1659","$1.1659 to under $1.2781","$1.2781 to under $1.3998","$1.3998 and over")), y = log10(`Change in Total M&O Revenue per Current Law ADA`))) + geom_boxplot() + coord_flip() + xlab("TAXRATE")
+
+ggplot(data = dfull, aes(x = PROPWLTH, y = log10(`Change in Total M&O Revenue per Current Law ADA`))) + geom_boxplot() + coord_flip()
+
+```
+
+Next some scatterplots of correlated variables. First variable DPFVTOTK, or TAXABLE VALUE PER PUPIL (2014 TAX YEAR). Not terribly conclusive; a negative correlation but varies some in the graph.
+
+```{r}
+dfull$DPFVTOTK <- as.numeric(dfull$DPFVTOTK)
+cor(x = log10(dfull$DPFVTOTK), y = log10(dfull$`Change in Total M&O Revenue`), use="complete.obs")
+ggplot(dfull, aes(x = log10(DPFVTOTK), y = log10(`Change in Total M&O Revenue per Current Law ADA`))) + geom_point() + geom_smooth()
+
+```
+
+Next is DPFRAALLK, TOTAL ACTUAL REVENUE PER PUPIL. Similarly inconclusive.
+
+```{r}
+dfull$DPFRAALLK <- as.numeric(dfull$DPFRAALLK)
+hist(log10(dfull$DPFRAALLK))
+cor(x = log10(dfull$DPFRAALLK), y = log10(dfull$`Change in Total M&O Revenue`), use="complete.obs")
+ggplot(dfull, aes(x = log10(DPFRAALLK), y = log10(`Change in Total M&O Revenue per Current Law ADA`))) + geom_point() + geom_smooth()
+
+```
+
+Finally, DPFRAALLT, TOTAL ACTUAL REVENUE (2015-16). A fairly close correlation, where districts with high total revenue see a bigger rise in total M&O revenue post-HB 3.
+
+```{r}
+dfull$DPFRAALLT <- as.numeric(dfull$DPFRAALLT)
+cor(x = log10(dfull$DPFRAALLT), y = log10(dfull$`Change in Total M&O Revenue`), use="complete.obs")
+ggplot(dfull, aes(x = log10(DPFRAALLT), y = log10(`Change in Total M&O Revenue`), color=COMMTYPE)) + geom_point() + geom_smooth()
+
+```
+
+
+You can also do maps, using TEA's school district shapefiles obtained from their open data portal.
+
+```{r}
+library(sf)
+library(mapview)
+cd <- st_read('Current_Districts/Current_Districts.shp', stringsAsFactors = FALSE)
+dfullcopy <- inner_join(dfull, cd, by = c("DISTRICT" = "DISTRICT_C"))
+```
+
+
+```{r, eval = FALSE}
+ggplot(data = dfullcopy) + geom_sf(aes(fill=log10(`Change in Total M&O Revenue per Current Law ADA`))) + scale_fill_viridis_c(alpha = .4)
+```
+
+```{r, eval = FALSE}
+ggplot(data = dfullcopy) + geom_sf(aes(fill=log10(`Change in Total M&O Revenue`))) + scale_fill_viridis_c(alpha = .4)
+```
+
+Calculate the difference in recapture pre- and post-HB3. (Positive difference = district pays less in recapture)
+
+```{r}
+dfullcopy$recapdiff <- dfullcopy$`Current Law Recapture` - dfullcopy$`HB 3 Recapture`
+dfullcopy$recapdiff_ada <- dfullcopy$recapdiff / dfullcopy$`Current Law ADA`
+```
+
+...and map it, leaving out Kenedy County with its big recapture change, and then leaving out districts with no change in recapture.
+
+```{r, eval = FALSE}
+dfullcopy %>% filter(recapdiff_ada<10000) %>% ggplot() + geom_sf(aes(fill=recapdiff_ada)) + scale_fill_viridis_c(alpha = .4)
+```
+
+
+```{r}
+#library(mapview)
+dfullcopy %>% filter(recapdiff_ada>0) %>% filter(recapdiff_ada<10000) %>% ggplot() + geom_sf(aes(fill=recapdiff_ada)) + scale_fill_viridis_c(alpha = .4)
+#mapshot(map1, url = paste0(getwd(), "/docs/map1.html"))
+```
+
+
+
