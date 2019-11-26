@@ -126,7 +126,7 @@ dfullcopy$recapdiff_ada <- dfullcopy$recapdiff / dfullcopy$`Current Law ADA`
 dfullcopy %>% filter(recapdiff_ada>0) %>% filter(recapdiff_ada<10000) %>% ggplot() + geom_sf(aes(fill=recapdiff_ada)) + scale_fill_viridis_c(alpha = .4)
 ```
 
-Alternatively, you can create this same map as a [zoomable, dynamic leaflet web page](docs/map_recapdiff_ada.html) with rollovers for school district info.
+Alternatively, you can create this same map as a [zoomable, dynamic leaflet web page](map_recapdiff_ada.html) with rollovers for school district info.
 
 ```{r}
 dfullcopysf <- st_sf(dfullcopy)
